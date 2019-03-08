@@ -2,6 +2,34 @@
 # Stack name: cloudformation-notifications
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Configure SNS topics to subscribe to specific CloudFormation notifications and forward them to users"
+Parameters:
+  ASI:
+    Type: String
+    MinLength: 2
+    MaxLength: 4
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 7
+    Description: "environment (nonprod|dev|itg|cat|prod) - must be lower-case, limit 7 characters"
+    AllowedPattern: "[a-z]*"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Configuration"
+        Parameters:
+        - ASI
+        - Environment
+        - Owner
 
 Resources:
   # SNS topic to send emails to users (used inside Lambda function)
@@ -9,7 +37,7 @@ Resources:
     Type: "AWS::SNS::Topic"
     Properties:
       Subscription:
-        - Endpoint: "replaceme@example.com" # PUT YOUR EMAIL ADDRESS HERE
+        - Endpoint: !Ref Owner
           Protocol: "email"
 
   # IAM role and inline policy for Lambda function
@@ -105,7 +133,7 @@ Resources:
                         TopicArn=sns_topic_arn
                     )
       Runtime: "python3.6"
-      Timeout: "90"
+      Timeout: 90
       TracingConfig:
         Mode: "Active"
 
@@ -117,7 +145,6 @@ Resources:
         -
           Endpoint: !GetAtt "LambdaFunction.Arn"
           Protocol: "lambda"
-    DependsOn: "LambdaFunction"
 
   # Lambda permission to allow SNS to forward events to Lambda function
   LambdaPermission:
